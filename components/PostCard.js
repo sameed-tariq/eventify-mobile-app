@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/FontAwesome";
 export default function PostCard(props) {
   const navigation = useNavigation();
   const [user, setUser] = useState("");
@@ -22,18 +23,18 @@ export default function PostCard(props) {
       <View style={styles.userCard}>
         <Image
           source={{ uri: headerImage }}
-          style={{ width: "100%", height: "100%", borderRadius: 35 }}
+          style={{ width: "100%", height: "100%", borderRadius: 25 }}
         ></Image>
 
         <View
           style={{
             position: "absolute",
             zIndex: 10000,
-            height: 70,
+            height: 60,
             width: 340,
             alignSelf: "center",
             marginTop: 173,
-            backgroundColor: "rgb(240,240,240)",
+            backgroundColor: "rgba(240,240,240,0.6)",
             borderRadius: 30,
 
             paddingVertical: 18,
@@ -49,16 +50,24 @@ export default function PostCard(props) {
             top: -40,
           }}
         >
-          <View style={{ flexDirection: "row" }}>
-            <TouchableOpacity style={{ width: 100 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              paddingHorizontal: "5%",
+            }}
+          >
+            <TouchableOpacity style={{}}>
               <Text
                 style={{
                   textAlign: "center",
-                  fontSize: 20,
-                  fontWeight: "700",
+                  fontSize: 18,
+                  fontWeight: "500",
                   textTransform: "uppercase",
-                  color: "white",
+                  color: "black",
                   marginTop: 0,
+                  // width: "50%",
+                  // flexWrap: "wrap",
                 }}
               >
                 {name}
@@ -66,16 +75,20 @@ export default function PostCard(props) {
             </TouchableOpacity>
             <View
               style={{
-                marginTop: 10,
-                width: "65%",
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 0,
+                // width: "5%",
               }}
             >
+              <Icon name="map-marker" size={18} />
               <Text
                 style={{
                   textAlign: "center",
-                  fontSize: 15,
-                  fontWeight: "700",
-                  color: "white",
+                  fontSize: 20,
+                  fontWeight: "500",
+                  color: "black",
+                  marginHorizontal: "5%",
                 }}
               >
                 {venue}
@@ -104,6 +117,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 35,
     shadowColor: "#000",
+
     shadowOffset: {
       width: 0,
       height: 9,

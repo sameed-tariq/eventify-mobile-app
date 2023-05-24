@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { auth, db } from "../screens/Firebase";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { doc, setDoc, collection, updateDoc } from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   createAuthUserWithEmailAndPassword,
@@ -26,6 +26,9 @@ export default SignUp = ({ navigation }) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [cnic, setCnic] = useState("");
 
   const handleSignUp = async () => {
     if (password !== confirmPassword) {
@@ -41,8 +44,11 @@ export default SignUp = ({ navigation }) => {
 
         setDoc(doc(collection(db, "users")), {
           userId: auth.currentUser.uid,
-          name: displayName,
+          displayName: displayName,
           email: email,
+          phone: phone,
+          cnic: cnic,
+          username: username,
         })
           .then(() => {
             navigation.push("Login");
@@ -52,6 +58,37 @@ export default SignUp = ({ navigation }) => {
           });
       })
       .catch((error) => alert(error.message));
+  };
+
+  const updateUserDetails = async () => {
+    try {
+      if (!currentUser) {
+        return;
+      }
+
+      const userRef = collection(db, "users");
+      const querySnapshot = await getDocs(
+        query(userRef, where("userId", "==", currentUser.uid))
+      );
+
+      const docId = querySnapshot.docs[0].id;
+      const userDocRef = doc(db, "users", docId);
+
+      await updateDoc(userDocRef, {
+        email: eMail,
+        phone: phoneNum,
+      });
+
+      setUserDetails((prevState) => ({
+        ...prevState,
+        email: eMail,
+        phone: phoneNum,
+      }));
+
+      setEdit(false);
+    } catch (error) {
+      console.log("Error updating user details: ", error);
+    }
   };
 
   return (
@@ -68,12 +105,30 @@ export default SignUp = ({ navigation }) => {
       <Image style={styles.logo} source={require("../assets/logo.png")} />
 
       <View style={styles.inputContainer}>
-        <TextInput
-          placeholder="Name"
-          value={displayName}
-          onChangeText={(text) => setDisplayName(text)}
-          style={styles.input}
-        />
+        <View
+          style={{
+            flexDirection: "row",
+            width: "100%",
+            justifyContent: "space-between",
+          }}
+        >
+          <View style={{ width: "49%" }}>
+            <TextInput
+              placeholder="Name"
+              value={displayName}
+              onChangeText={(text) => setDisplayName(text)}
+              style={styles.input}
+            />
+          </View>
+          <View style={{ width: "49%" }}>
+            <TextInput
+              placeholder="Eventify-ID"
+              value={username}
+              onChangeText={(text) => setUsername(text)}
+              style={styles.input}
+            />
+          </View>
+        </View>
         <TextInput
           placeholder="Email"
           value={email}
@@ -81,20 +136,43 @@ export default SignUp = ({ navigation }) => {
           style={styles.input}
         />
         <TextInput
-          placeholder="Password"
-          value={password}
-          onChangeText={(text) => setPassword(text)}
+          placeholder="Phone"
+          value={phone}
+          onChangeText={(text) => setPhone(text)}
           style={styles.input}
-          secureTextEntry
         />
-
         <TextInput
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChangeText={(text) => setConfirmPassword(text)}
+          placeholder="CNIC"
+          value={cnic}
+          onChangeText={(text) => setCnic(text)}
           style={styles.input}
-          secureTextEntry
         />
+        <View
+          style={{
+            flexDirection: "row",
+            width: "100%",
+            justifyContent: "space-between",
+          }}
+        >
+          <View style={{ width: "49%" }}>
+            <TextInput
+              placeholder="Password"
+              value={password}
+              onChangeText={(text) => setPassword(text)}
+              style={styles.input}
+              secureTextEntry
+            />
+          </View>
+          <View style={{ width: "49%" }}>
+            <TextInput
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChangeText={(text) => setConfirmPassword(text)}
+              style={styles.input}
+              secureTextEntry
+            />
+          </View>
+        </View>
       </View>
 
       <LinearGradient
@@ -124,12 +202,13 @@ const styles = StyleSheet.create({
   },
 
   inputContainer: {
-    marginTop: "80%",
+    marginTop: "75%",
     width: "78%",
   },
   input: {
     backgroundColor: "#D9D9D9",
-    height: 60,
+    height: 40,
+    width: "100%",
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 10,

@@ -39,22 +39,47 @@ function AddEvent() {
   const [date, setDate] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
-  const [headerImage, setHeaderImage] = useState(null);
-  const [galleryImages, setGalleryImages] = useState([]);
-  const [downloadUrl, setDownloadUrl] = useState("");
-  const [isGalleryUploaded, setIsGalleryUploaded] = useState(false);
-  const [isHeaderUploaded, setIsHeaderUploaded] = useState(false);
-  const navigation = useNavigation();
+  const [headerImage, setHeaderImage] = useState("");
+  const [description, setDescription] = useState("");
+
+  const resetFields = () => {
+    setName("");
+    setVenue("");
+    setImages([]);
+    setDate("");
+    setPrice("");
+    setDuration("");
+    setHeaderImage("");
+    setDescription("");
+  };
 
   const addEvent = async () => {
+    try {
+      const [galleryImagesResult, headerUploadImageResult] = await Promise.all([
+        uploadImage(),
+        uploadHeaderImage(),
+      ]);
+
+      const galleryImagesArray = galleryImagesResult.filter(Boolean);
+
+      await uploadDetails(galleryImagesArray, headerUploadImageResult);
+
+      resetFields();
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  const uploadDetails = async (galleryImagesArray, headerUploadImageResult) => {
     await setDoc(doc(collection(db, "events")), {
       name,
       venue,
       date,
       price,
       duration,
-      headerImage,
-      galleryImages,
+      description,
+      headerImage: headerUploadImageResult,
+      galleryImages: galleryImagesArray,
       userId: currentUser.uid,
     });
   };
@@ -79,7 +104,6 @@ function AddEvent() {
         });
         return imageArray;
       });
-      await uploadImage();
     }
   };
   const pickHeaderImage = async () => {
@@ -94,8 +118,12 @@ function AddEvent() {
 
     if (!result.canceled) {
       setHeaderImage(result.assets[0].uri);
-      await uploadHeaderImage();
     }
+  };
+
+  const uploadHeaderImage = async () => {
+    const downloadURL = await uploadImageToStorage(headerImage);
+    return downloadURL;
   };
 
   const uploadImageToStorage = async (image) => {
@@ -104,54 +132,62 @@ function AddEvent() {
     const blob = await response.blob();
     const filename = image.substring(image.lastIndexOf("/") + 1);
     const storageRef = ref(storage, `images/${filename}`);
-    const uploadTask = await uploadBytesResumable(storageRef, blob);
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        // Observe state change events such as progress, pause, and resume
-        // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log("Upload is " + progress + "% done");
-        switch (snapshot.state) {
-          case "paused":
-            console.log("Upload is paused");
-            break;
-          case "running":
-            console.log("Upload is running");
-            break;
+    const uploadTask = uploadBytesResumable(storageRef, blob);
+    const downloadURL = await new Promise((resolve, reject) => {
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          // Observe state change events such as progress, pause, and resume
+          // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log("Upload is " + progress + "% done");
+          switch (snapshot.state) {
+            case "paused":
+              console.log("Upload is paused");
+              break;
+            case "running":
+              console.log("Upload is running");
+              break;
+          }
+        },
+        (error) => {
+          // Handle unsuccessful uploads
+          console.log(error);
+          reject(error);
+        },
+        async () => {
+          // Handle successful uploads on complete
+          // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          // console.log("File available at", downloadURL);
+          resolve(downloadURL);
         }
-      },
-      (error) => {
-        // Handle unsuccessful uploads
-        console.log(error);
-      },
-      () => {
-        // Handle successful uploads on complete
-        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          console.log("File available at", downloadURL);
-          setDownloadUrl(downloadURL);
-        });
-      }
-    );
+      );
+    });
+
+    return downloadURL;
   };
 
   const uploadImage = async () => {
-    let tempimg = [];
-    images?.map((image) => {
-      const dUrl = uploadImageToStorage(image);
-      tempimg = [...tempimg, downloadUrl];
-      setGalleryImages(tempimg);
-    });
-    setIsGalleryUploaded(true);
+    // console.log(images.length);
+    let array = [];
+    await Promise.all(
+      images?.map(async (image) => {
+        const dUrl = await uploadImageToStorage(image);
+        // console.log("dUrl: " + dUrl);
+        array.push(dUrl);
+      })
+    );
+    return array;
   };
 
-  const uploadHeaderImage = async () => {
-    const dUrl = await uploadImageToStorage(headerImage);
-    setHeaderImage(downloadUrl);
-    setIsHeaderUploaded(true);
-  };
+  // useEffect(() => {
+  //   console.log("gallery:");
+  //   console.log(galleryImages);
+  //   console.log("header:");
+  //   console.log(headerUploadImage);
+  // }, [galleryImages, headerUploadImage]);
 
   return (
     <View style={styles.container}>
@@ -169,11 +205,11 @@ function AddEvent() {
               alignItems: "center",
               justifyContent: "center",
               position: "absolute",
-              top: "60%",
+              top: "61%",
             }}
           >
             <Button
-              title="Select Gallery Images (upto 3)"
+              title="++Select Gallery Images (upto 3)"
               onPress={pickImage}
               color={"white"}
             />
@@ -199,7 +235,7 @@ function AddEvent() {
               )}
             </View>
             <Button
-              title="Pick header image"
+              title="++Select header image"
               color={"white"}
               onPress={pickHeaderImage}
             />
@@ -241,6 +277,14 @@ function AddEvent() {
               value={venue}
               onChangeText={(text) => setVenue(text)}
               style={styles.input}
+            />
+            <TextInput
+              placeholder="Description"
+              value={description}
+              multiline={true}
+              numberOfLines={4}
+              onChangeText={(text) => setDescription(text)}
+              style={[styles.input, styles.descriptionField]}
             />
 
             <TextInput
@@ -310,7 +354,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
   },
   eventForm: {
-    top: "20%",
+    top: "14%",
     position: "absolute",
     width: "80%",
   },
@@ -338,5 +382,8 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
     fontSize: 24,
+  },
+  descriptionField: {
+    height: 70,
   },
 });

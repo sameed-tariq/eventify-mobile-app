@@ -8,18 +8,29 @@ import {
   Image,
 } from "react-native";
 import { auth, db } from "../../firebase-utils";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  arrayUnion,
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { LinearGradient } from "expo-linear-gradient";
 import PostCard from "../../components/PostCard";
 import SearchBox from "../../components/SearchBox";
+import BuddyCard from "../../components/BuddyCard";
 
 export default function Home({ navigation }) {
   const currentUser = auth.currentUser;
-  const [userName, setUserName] = useState("");
+  const [currentUserDetails, setCurrentUserDetails] = useState("");
   const [events, setEvents] = useState(null);
   const [filteredEvents, setFilteredEvents] = useState(null);
   const [searchField, setSearchField] = useState("");
+  const [users, setUsers] = useState([]);
+  const [render, setRender] = useState(false);
 
   const getEvents = () => {
     getDocs(collection(db, "events")).then((eventSnap) => {
@@ -31,8 +42,47 @@ export default function Home({ navigation }) {
     });
   };
 
-  const imageUrl =
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS7kWJYCwhpIKZbQPc0KmTMMCizXXWEwiw_Tg&usqp=CAU";
+  const onPressHandler = async (id) => {
+    await addFriendInUserDocument(id);
+
+    forceUpdate();
+  };
+
+  const forceUpdate = () => {
+    setRender(!render);
+  };
+
+  const addFriendInUserDocument = async (id) => {
+    try {
+      if (!currentUser) {
+        return;
+      }
+
+      const userRef = collection(db, "users");
+      const querySnapshot = await getDocs(
+        query(userRef, where("userId", "==", currentUser.uid))
+      );
+
+      const docId = querySnapshot.docs[0].id;
+      const userDocRef = doc(db, "users", docId);
+
+      await updateDoc(userDocRef, {
+        friends: arrayUnion(id),
+      });
+    } catch (error) {
+      console.log("Error updating user details: ", error);
+    }
+  };
+
+  const getUsers = () => {
+    getDocs(collection(db, "users")).then((userSnap) => {
+      let tempUsers = [];
+      userSnap.forEach((user) => {
+        tempUsers.push({ ...user.data(), id: user.id });
+      });
+      setUsers(tempUsers);
+    });
+  };
 
   const getCurrentUserName = async () => {
     if (!currentUser) {
@@ -43,13 +93,13 @@ export default function Home({ navigation }) {
       query(collection(db, "users"), where("userId", "==", currentUser.uid))
     );
 
-    setUserName(docSnap.docs[0].data().name);
+    setCurrentUserDetails(docSnap.docs[0].data());
   };
 
   useEffect(() => {
+    getUsers();
     getCurrentUserName();
     getEvents();
-    console.log(events);
   }, []);
 
   useEffect(() => {
@@ -57,7 +107,6 @@ export default function Home({ navigation }) {
       return event.venue.toLocaleLowerCase().includes(searchField);
     });
     setFilteredEvents(newFilteredEvents);
-    console.log(filteredEvents);
   }, [events, searchField]);
 
   return (
@@ -100,7 +149,22 @@ export default function Home({ navigation }) {
           />
         </View>
 
-        <Image source={{ uri: imageUrl }} />
+        <View style={styles.buddyCardContainer}>
+          <Text style={styles.buddyCardTitle}>Quick Add</Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={users.filter(
+              (user) => !currentUserDetails.friends?.includes(user.userId)
+            )}
+            renderItem={({ item }) => (
+              <BuddyCard
+                item={item}
+                onPressHandler={() => onPressHandler(item.userId)}
+              />
+            )}
+          />
+        </View>
       </LinearGradient>
     </View>
   );
@@ -165,5 +229,17 @@ const styles = StyleSheet.create({
     width: "90%",
     height: "6%",
     marginHorizontal: "5%",
+  },
+  buddyCardContainer: {
+    position: "absolute",
+    marginTop: "130%",
+    height: 300,
+  },
+  buddyCardTitle: {
+    color: "white",
+    fontSize: 30,
+    fontWeight: 600,
+    marginLeft: "5%",
+    marginBottom: "5%",
   },
 });

@@ -1,32 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  StatusBar,
   ImageBackground,
-  Platform,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
 } from "react-native";
 // import { TouchableOpacity } from "react-native-gesture-handler";
 // import Icon from "react-native-vector-icons/MaterialIcons";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+
 import { LinearGradient } from "expo-linear-gradient";
-import { auth, db } from "./Firebase";
-import {
-  doc,
-  deleteDoc,
-  collection,
-  setDoc,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
-// import COLORS from "../constants/colors";
+import { auth } from "./Firebase";
 
 export default function DetailsScreen({ navigation, route }) {
   const currentUser = auth.currentUser;
@@ -34,7 +21,15 @@ export default function DetailsScreen({ navigation, route }) {
   const [isFavorite, setIsFavorite] = useState(false);
   //   const props = navigation.getParam("props");
   const {
-    item: { name, headerImage, price, duration, description, galleryImages },
+    item: {
+      name,
+      headerImage,
+      price,
+      duration,
+      description,
+      galleryImages,
+      venue,
+    },
   } = route.params;
 
   //   const addToCart = () => {
@@ -98,13 +93,17 @@ export default function DetailsScreen({ navigation, route }) {
       >
         {/* <StatusBar backgroundColor="transparent" translucent /> */}
         <View style={styles.header}>
-          <Icon
+          {/* <Icon
             name="arrow-back"
             color="white"
             size={35}
             onPress={() => navigation.goBack()}
-          />
+          /> */}
           <Text style={styles.titleText}>{name}</Text>
+          <Text style={styles.titleText}>
+            <Icon name="location-sharp" size={20} />
+            {venue}
+          </Text>
         </View>
 
         <View style={{ flex: 1 }}>
@@ -124,22 +123,12 @@ export default function DetailsScreen({ navigation, route }) {
                 <Icon name="pricetag-outline" color="white" size={35} />
                 <View style={{ alignItems: "center" }}>
                   <Text style={styles.priceTagText}>{price}</Text>
-                  <Text
-                    style={{ fontSize: 15, color: "white", marginLeft: 10 }}
-                  >
-                    Price
-                  </Text>
                 </View>
               </View>
               <View style={styles.priceTag}>
                 <Icon name="time-outline" color="white" size={35} />
                 <View style={{ alignItems: "center" }}>
-                  <Text style={styles.priceTagText}>{duration} hours</Text>
-                  <Text
-                    style={{ fontSize: 15, color: "white", marginLeft: 10 }}
-                  >
-                    Duration
-                  </Text>
+                  <Text style={styles.priceTagText}>{duration}</Text>
                 </View>
               </View>
             </View>
@@ -243,13 +232,19 @@ const styles = StyleSheet.create({
   },
   backgroundImage: { flex: 1, height: "100%", justifyContent: "center" },
   header: {
+    backgroundColor: "rgba(240,240,240,0.8)",
+    borderRadius: 30,
     position: "absolute",
-    top: 0,
-    width: "100%",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 20 : 40,
-    flexDirection: "column",
+    top: "12%",
+    width: "95%",
+    height: "7%",
+    marginHorizontal: "2.5%",
     justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: "5%",
+    // paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 20 : 40,
+    flexDirection: "row",
+    // justifyContent: "space-between",
   },
 
   detailsContainer: {
@@ -283,10 +278,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   titleText: {
-    fontSize: 35,
+    // alignItems: "center",
+    fontSize: 25,
     fontWeight: "bold",
-    color: "white",
-    marginTop: 50,
+    color: "black",
+    // marginTop: 50,
   },
   borderBtn: {
     borderColor: "grey",

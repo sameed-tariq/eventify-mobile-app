@@ -6,33 +6,189 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  Button,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import Icon from "react-native-vector-icons/AntDesign";
-import { auth } from "./Firebase";
+import { auth, db } from "./Firebase";
 import { signOut } from "firebase/auth";
+import * as ImagePicker from "expo-image-picker";
+import { storage } from "./Firebase";
+import { uploadBytesResumable, ref, getDownloadURL } from "firebase/storage";
 
-const user = {
-  name: "Salman Shahid",
-  userName: "@maanxheikh_",
-  email: "S@s.com",
-  phone: "03111479996",
-  cnic: "35202-3559476-5",
-  score: 76,
-  profilePicture:
-    "https://s3-alpha-sig.figma.com/img/fa4a/171e/1da72e03bf818de831b38711a600bbf6?Expires=1685318400&Signature=TSkzuXzQJG6YKROtQ29cq7ViQ~vPTis4sDdFZlbjFaz7h2Gws1VG1ZC4LkGvcJbXaR~d1~stgdY~5R07FG5knjMJH4kV8bZy4Y4E~GJJ1CEc4kHkB9LhI~BT~1NjuR2nvCOeG3yA0fNUaiG26UFj-O3nN0MKnJKClagI3i9lqYGl3RUqy4QpoTNxuk9pHlay1G08o8T6lLDvVHUCDR5QtQQVUZtsa5izJnjhVpKlhiN9jhfn05LD~18ea5ZoFV530VK9a1YEWABPB0O36W9XlAlShnPo9nsArSWbGiRt-JHhsSOLAZkclh5mkzQ7b7~kU-n7e3uHVUwZ8CQ3c6sNDQ__&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4",
-};
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+// import { AuthContext } from "../navigation/AuthContext";
+// const user = {
+//   name: "Salman Shahid",
+//   userName: "@maanxheikh_",
+//   email: "S@s.com",
+//   phone: "03111479996",
+//   cnic: "35202-3559476-5",
+//   score: 76,
+//   profilePicture:
+//     "https://s3-alpha-sig.figma.com/img/fa4a/171e/1da72e03bf818de831b38711a600bbf6?Expires=1685318400&Signature=TSkzuXzQJG6YKROtQ29cq7ViQ~vPTis4sDdFZlbjFaz7h2Gws1VG1ZC4LkGvcJbXaR~d1~stgdY~5R07FG5knjMJH4kV8bZy4Y4E~GJJ1CEc4kHkB9LhI~BT~1NjuR2nvCOeG3yA0fNUaiG26UFj-O3nN0MKnJKClagI3i9lqYGl3RUqy4QpoTNxuk9pHlay1G08o8T6lLDvVHUCDR5QtQQVUZtsa5izJnjhVpKlhiN9jhfn05LD~18ea5ZoFV530VK9a1YEWABPB0O36W9XlAlShnPo9nsArSWbGiRt-JHhsSOLAZkclh5mkzQ7b7~kU-n7e3uHVUwZ8CQ3c6sNDQ__&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4",
+// };
 
 const UserProfile = () => {
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const currentUser = auth.currentUser;
+  const [eMail, setEmail] = useState("");
+  const [phoneNum, setPhone] = useState("");
   const [edit, setEdit] = useState(false);
+  const [photo, setPhoto] = useState(null);
   const navigation = useNavigation();
+  const [userDetails, setUserDetails] = useState(null);
+  const [tempPhoto, setTempPhoto] = useState(null);
+  const { displayName, email, phone, cnic, username, profilePhoto } =
+    userDetails || {};
+
+  const getCurrentUserName = async () => {
+    if (!currentUser) {
+      return;
+    }
+
+    const docSnap = await getDocs(
+      query(collection(db, "users"), where("userId", "==", currentUser.uid))
+    );
+
+    setUserDetails(docSnap.docs[0].data());
+  };
+
+  useEffect(() => {
+    getCurrentUserName();
+  }, [currentUser]);
+
+  useEffect(() => {
+    console.log(tempPhoto);
+  }, [tempPhoto]);
+
+  useEffect(() => {
+    setEmail(email);
+    setPhone(phone);
+  }, [userDetails]);
 
   const signOutUser = async () => {
     await signOut(auth);
+  };
+
+  const addProfilePhoto = async () => {
+    await pickHeaderImage();
+  };
+
+  const pickHeaderImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      // allowsMultipleSelection,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setTempPhoto(result.assets[0].uri);
+    }
+  };
+
+  const uploadImageToStorage = async (image) => {
+    let dUrl = "";
+    const response = await fetch(image);
+    const blob = await response.blob();
+    const filename = image.substring(image.lastIndexOf("/") + 1);
+    const storageRef = ref(storage, `images/${filename}`);
+    const uploadTask = uploadBytesResumable(storageRef, blob);
+    const downloadURL = await new Promise((resolve, reject) => {
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          // Observe state change events such as progress, pause, and resume
+          // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log("Upload is " + progress + "% done");
+          switch (snapshot.state) {
+            case "paused":
+              console.log("Upload is paused");
+              break;
+            case "running":
+              console.log("Upload is running");
+              break;
+          }
+        },
+        (error) => {
+          // Handle unsuccessful uploads
+          console.log(error);
+          reject(error);
+        },
+        async () => {
+          // Handle successful uploads on complete
+          // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          console.log("File available at", downloadURL);
+          resolve(downloadURL);
+        }
+      );
+    });
+
+    return downloadURL;
+  };
+
+  const updateHandler = async () => {
+    if (!profilePhoto) {
+      const dUrl = await uploadImageToStorage(tempPhoto);
+      await updateUserDetails(dUrl);
+      return;
+    }
+
+    await updateUserDetails();
+  };
+
+  const updateUserDetails = async (downloadUrl) => {
+    try {
+      if (!currentUser) {
+        return;
+      }
+
+      const userRef = collection(db, "users");
+      const querySnapshot = await getDocs(
+        query(userRef, where("userId", "==", currentUser.uid))
+      );
+
+      const docId = querySnapshot.docs[0].id;
+      const userDocRef = doc(db, "users", docId);
+
+      if (downloadUrl) {
+        await updateDoc(userDocRef, {
+          email: eMail,
+          phone: phoneNum,
+          profilePhoto: downloadUrl,
+        });
+      } else {
+        await updateDoc(userDocRef, {
+          email: eMail,
+          phone: phoneNum,
+        });
+      }
+
+      setUserDetails((prevState) => ({
+        ...prevState,
+        email: eMail,
+        phone: phoneNum,
+        profilePhoto: downloadUrl,
+      }));
+
+      setEdit(false);
+    } catch (error) {
+      console.log("Error updating user details: ", error);
+    }
   };
   return (
     <View style={styles.container}>
@@ -45,16 +201,48 @@ const UserProfile = () => {
       />
 
       <View style={styles.nameContainer}>
-        <Image
-          source={{ uri: user.profilePicture }}
-          style={{
-            height: 150,
-            width: 150,
-            borderRadius: 100,
-            marginBottom: "5%",
-          }}
+        {profilePhoto ? (
+          <Image
+            source={{ uri: profilePhoto }}
+            style={{
+              height: 150,
+              width: 150,
+              borderRadius: 100,
+              marginBottom: "5%",
+            }}
+          />
+        ) : tempPhoto ? (
+          <View>
+            <Image
+              source={{ uri: tempPhoto }}
+              style={{
+                height: 150,
+                width: 150,
+                borderRadius: 100,
+                marginBottom: "5%",
+              }}
+            />
+          </View>
+        ) : (
+          <View>
+            <Image
+              source={require("../assets/userProfile.jpg")}
+              style={{
+                height: 150,
+                width: 150,
+                borderRadius: 100,
+                marginBottom: "5%",
+              }}
+            />
+          </View>
+        )}
+        <Button
+          title="Change Photo"
+          onPress={addProfilePhoto}
+          color="white"
+          style={{ position: "absolute" }}
         />
-        <Text style={styles.nameText}>{user.name}</Text>
+        <Text style={styles.nameText}>{displayName}</Text>
       </View>
       <View style={styles.detailsContainer}>
         {!edit ? (
@@ -76,16 +264,16 @@ const UserProfile = () => {
         )}
         <View style={styles.detailsField}>
           <Icon name="user" color="rgba(255, 255, 255, 0.3)" size={35} />
-          <Text style={styles.detailsFieldText}>{user.userName}</Text>
+          <Text style={styles.detailsFieldText}>{username}</Text>
         </View>
         <View style={styles.detailsField}>
           <Icon name="mail" color="rgba(255, 255, 255, 0.3)" size={35} />
           {!edit ? (
-            <Text style={styles.detailsFieldText}>{user.email}</Text>
+            <Text style={styles.detailsFieldText}>{email}</Text>
           ) : (
             <TextInput
               placeholder="Email"
-              value={email}
+              value={eMail}
               onChangeText={(text) => setEmail(text)}
               style={styles.input}
             />
@@ -94,11 +282,11 @@ const UserProfile = () => {
         <View style={styles.detailsField}>
           <Icon name="mobile1" color="rgba(255, 255, 255, 0.3)" size={35} />
           {!edit ? (
-            <Text style={styles.detailsFieldText}>{user.phone}</Text>
+            <Text style={styles.detailsFieldText}>{phone}</Text>
           ) : (
             <TextInput
               placeholder="Phone"
-              value={phone}
+              value={phoneNum}
               onChangeText={(text) => setPhone(text)}
               style={styles.input}
             />
@@ -106,7 +294,7 @@ const UserProfile = () => {
         </View>
         <View style={styles.detailsField}>
           <Icon name="idcard" color="rgba(255, 255, 255, 0.3)" size={35} />
-          <Text style={styles.detailsFieldText}>{user.cnic}</Text>
+          <Text style={styles.detailsFieldText}>{cnic}</Text>
         </View>
       </View>
 
@@ -130,7 +318,10 @@ const UserProfile = () => {
       </View>
 
       <View style={{ alignItems: "center", top: "85%" }}>
-        <TouchableOpacity style={{ alignItems: "center", marginBottom: 50 }}>
+        <TouchableOpacity
+          onPress={updateHandler}
+          style={{ alignItems: "center", marginBottom: 50 }}
+        >
           <View style={styles.joinButton}>
             <Text style={styles.joinButtonText}>Update</Text>
             <Icon name="reload1" color="white" size={30} />
@@ -164,6 +355,7 @@ const styles = StyleSheet.create({
     top: "15%",
     marginHorizontal: "12%",
     width: "30%",
+    alignItems: "center",
   },
   nameText: {
     fontSize: 38,

@@ -9,6 +9,7 @@ import AddEvent from "../screens/AddEvent";
 import Home from "../screens/Home";
 import DetailsScreen from "../screens/DetailScreen";
 import AddEventStack from "./AddEventStack";
+import MapScreen from "../screens/MapScreen";
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator = () => {
@@ -37,12 +38,22 @@ const BottomTabNavigator = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
+        name="HomeStack"
         component={SignInStack}
         options={{
           tabBarLabel: "Home",
           tabBarIcon: ({ color }) => (
             <Feather name="home" color={color} size={30} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MapScreen"
+        component={MapScreen}
+        options={{
+          tabBarLabel: "map",
+          tabBarIcon: ({ color }) => (
+            <Feather name="map-pin" size={30} color={color} />
           ),
         }}
       />
