@@ -12,6 +12,8 @@ export default function AuthNavigator() {
 
   // Handle user state changes
   function onAuthStateChanged(result) {
+    // console.log("USER: ");
+    // console.log(result);
     setUser(result);
     if (initializing) setInitializing(false);
   }

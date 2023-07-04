@@ -19,6 +19,30 @@ import { storage } from "./Firebase";
 import { uploadBytesResumable, ref, getDownloadURL } from "firebase/storage";
 import Icon from "react-native-vector-icons/AntDesign";
 import { useNavigation } from "@react-navigation/native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import DatePicker from "react-native-datepicker";
+
+const onChange = (event, selectedDate) => {
+  const currentDate = selectedDate;
+  setShow(false);
+  setDate(currentDate);
+};
+
+const showMode = (currentMode) => {
+  if (Platform.OS === "android") {
+    setShow(false);
+    // for iOS, add a button that closes the picker
+  }
+  setMode(currentMode);
+};
+
+const showDatepicker = () => {
+  showMode("date");
+};
+
+const showTimepicker = () => {
+  showMode("time");
+};
 
 const event = {
   name: "",
@@ -36,17 +60,22 @@ function AddEvent() {
   const [name, setName] = useState("");
   const [venue, setVenue] = useState("");
   const [images, setImages] = useState([]);
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(new Date(Date.now()));
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
   const [headerImage, setHeaderImage] = useState("");
   const [description, setDescription] = useState("");
 
+  const onChange = (event, selectedDate) => {
+    const currentDate = selectedDate;
+    setDate(currentDate);
+  };
+
   const resetFields = () => {
     setName("");
     setVenue("");
     setImages([]);
-    setDate("");
+    setDate(new Date(Date.now()));
     setPrice("");
     setDuration("");
     setHeaderImage("");
@@ -81,6 +110,7 @@ function AddEvent() {
       headerImage: headerUploadImageResult,
       galleryImages: galleryImagesArray,
       userId: currentUser.uid,
+      eventId: Date.now(),
     });
   };
 
@@ -286,13 +316,25 @@ function AddEvent() {
               onChangeText={(text) => setDescription(text)}
               style={[styles.input, styles.descriptionField]}
             />
+            <View
+              style={{ alignItems: "center", top: "5%", flexDirection: "row" }}
+            >
+              <Text style={{ color: "white", fontSize: 18 }}>Date:</Text>
+              <DateTimePicker
+                testID="dateTimePicker"
+                value={date}
+                mode={"datetime"}
+                is24Hour={true}
+                onChange={onChange}
+              />
+            </View>
 
-            <TextInput
+            {/* <TextInput
               placeholder="Date"
               value={date}
               onChangeText={(text) => setDate(text)}
               style={styles.input}
-            />
+            /> */}
             {/* <TextInput
               placeholder="Header Image"
               value={headerImage}

@@ -104,7 +104,9 @@ export default function Home({ navigation }) {
 
   useEffect(() => {
     const newFilteredEvents = events?.filter((event) => {
-      return event.venue.toLocaleLowerCase().includes(searchField);
+      return event.venue
+        .toLocaleLowerCase()
+        .includes(searchField.toLocaleLowerCase());
     });
     setFilteredEvents(newFilteredEvents);
   }, [events, searchField]);
@@ -134,7 +136,7 @@ export default function Home({ navigation }) {
         <SearchBox
           placeholder="Search Places"
           value={searchField}
-          onChange={(text) => setSearchField(text.toLocaleLowerCase())}
+          onChange={(text) => setSearchField(text)}
           style={styles.searchBox}
           iconSize={35}
           fontSize={18}
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
   searchBox: {
     backgroundColor: "#554759",
     position: "absolute",
-    borderRadius: "10",
+    borderRadius: 10,
     marginTop: "50%",
     width: "90%",
     height: "6%",

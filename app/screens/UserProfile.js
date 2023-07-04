@@ -66,9 +66,7 @@ const UserProfile = () => {
     getCurrentUserName();
   }, [currentUser]);
 
-  useEffect(() => {
-    console.log(tempPhoto);
-  }, [tempPhoto]);
+  useEffect(() => {}, [tempPhoto]);
 
   useEffect(() => {
     setEmail(email);
@@ -196,7 +194,7 @@ const UserProfile = () => {
         name="left"
         color="white"
         size={35}
-        style={{ position: "absolute", left: "4%%", top: "6%" }}
+        style={{ position: "absolute", left: "4%", top: "6%" }}
         onPress={() => navigation.goBack()}
       />
 

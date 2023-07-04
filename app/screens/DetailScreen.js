@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,47 @@ import {
   ImageBackground,
   Image,
   TouchableOpacity,
+  FlatList,
   ScrollView,
+  LogBox,
 } from "react-native";
 // import { TouchableOpacity } from "react-native-gesture-handler";
 // import Icon from "react-native-vector-icons/MaterialIcons";
 import Icon from "react-native-vector-icons/Ionicons";
-
+import {
+  arrayUnion,
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
-import { auth } from "./Firebase";
+import { auth, db } from "./Firebase";
+import { useContext } from "react";
+import { AuthContext } from "../navigation/AuthContext";
 
 export default function DetailsScreen({ navigation, route }) {
   const currentUser = auth.currentUser;
-  const [quantity, setQuantity] = useState(1);
+  const [joined, setJoined] = useState(false);
+  const [joinedUsersDetails, setJoinedUsersDetails] = useState([]);
+  const [friends, setFriends] = useState([]);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const user = useContext(AuthContext);
+
+  // const getUser = async () => {
+  //   if (!currentUser) {
+  //     return;
+  //   }
+
+  //   const docSnap = await getDocs(
+  //     query(collection(db, "users"), where("userId", "==", currentUser.uid))
+  //   );
+
+  //   setCurrentUserDetails(docSnap.docs[0].data());
+  // };
   //   const props = navigation.getParam("props");
   const {
     item: {
@@ -29,60 +57,70 @@ export default function DetailsScreen({ navigation, route }) {
       description,
       galleryImages,
       venue,
+      eventId,
+      joinedUsers,
     },
   } = route.params;
 
-  //   const addToCart = () => {
+  const checkJoined = async () => {
+    const docSnap = await getDocs(
+      query(collection(db, "users"), where("userId", "==", currentUser.uid))
+    );
 
-  //     setDoc(doc(collection(db, "cart")), {
-  //       userId: auth.currentUser.uid,
-  //       medicineId: medicine.id,
-  //       quantity: quantity,
-  //     })
-  //       .then(() => {
-  //         alert("Added to cart");
-  //       })
-  //       .catch((error) => {
-  //         alert(error.message);
-  //       });
-  //   };
+    if (docSnap.docs[0].data().joinedEvents.includes(eventId)) {
+      setJoined(true);
+    }
+    setFriends(docSnap.docs[0].data().friends);
+  };
 
-  //   const toggleFavorites = () => {
-  //     if (!auth.currentUser) {
-  //       navigation.navigate("Auth");
-  //       return;
-  //     }
-  //     if (isFavorite) {
-  //       getDocs(
-  //         query(
-  //           collection(db, "userFavorites"),
-  //           where(
-  //             "userId",
-  //             "==",
-  //             currentUser.uid,
-  //             "and",
-  //             "medicineId",
-  //             "==",
-  //             medicine.id
-  //           )
-  //         )
-  //       ).then((docSnap) => {
-  //         deleteDoc(doc(db, "userFavorites", docSnap.doc.data().id));
-  //       });
-  //     } else {
-  //       setDoc(doc(collection(db, "userFavorites")), {
-  //         userId: currentUser.uid,
-  //         medicineId: medicine.id,
-  //       })
-  //         .then(() => {
-  //           console.log("data saved");
-  //         })
-  //         .catch((error) => {
-  //           console.log(error.message);
-  //         });
-  //     }
-  //     setIsFavorite(isFavorite ? false : true);
-  //   };
+  useEffect(() => {
+    checkJoined();
+    getJoinedUsersDetails();
+  }, []);
+
+  const getJoinedUsersDetails = async () => {
+    // joinedUsers.map(async (user) => {
+    //   const docSnap = await getDocs(
+    //     query(collection(db, "users"), where("userId", "==", user))
+    //   );
+    //   setJoinedUsersDetails((prev) => [...prev, docSnap.docs[0].data()]);
+    // });
+
+    joinedUsers.forEach(async (user) => {
+      const docSnap = await getDocs(
+        query(collection(db, "users"), where("userId", "==", user))
+      );
+      setJoinedUsersDetails((prev) => [...prev, docSnap.docs[0].data()]);
+    });
+  };
+
+  const handleJoin = async () => {
+    const userRef = collection(db, "users");
+    const querySnapshot = await getDocs(
+      query(userRef, where("userId", "==", user.uid))
+    );
+
+    const docId = querySnapshot.docs[0].id;
+    const userDocRef = doc(db, "users", docId);
+
+    const eventRef = collection(db, "events");
+    const eventSnapShot = await getDocs(
+      query(eventRef, where("eventId", "==", eventId))
+    );
+
+    const eventDocId = eventSnapShot.docs[0].id;
+    const eventDocRef = doc(db, "events", eventDocId);
+
+    await updateDoc(userDocRef, {
+      joinedEvents: arrayUnion(eventId),
+    });
+
+    await updateDoc(eventDocRef, {
+      joinedUsers: arrayUnion(user.uid),
+    });
+
+    await checkJoined();
+  };
 
   return (
     <View style={styles.container}>
@@ -108,6 +146,8 @@ export default function DetailsScreen({ navigation, route }) {
 
         <View style={{ flex: 1 }}>
           <ScrollView
+            nestedScrollEnabled
+            scrollEnabled={!showFriends}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 200 }}
             style={styles.detailsContainer}
@@ -181,19 +221,95 @@ export default function DetailsScreen({ navigation, route }) {
               </View>
             </View>
 
-            <View style={{ alignItems: "center" }}>
+            {!joined ? (
+              <View style={{ alignItems: "center" }}>
+                <TouchableOpacity
+                  style={{ alignItems: "center", marginBottom: 50 }}
+                  onPress={handleJoin}
+                >
+                  <View style={styles.joinButton}>
+                    <Text style={styles.joinButtonText}>Join</Text>
+                    <Icon name="add" color="white" size={35} />
+                  </View>
+                </TouchableOpacity>
+                <Text style={{ marginTop: 25, color: "white" }}>
+                  *terms and conditions apply.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ alignItems: "center" }}>
+                <TouchableOpacity
+                  style={{ alignItems: "center", marginBottom: 50 }}
+                >
+                  <View style={styles.joinButton}>
+                    <Text style={styles.joinButtonText}>Joined</Text>
+                    {/* <Icon name="add" color="white" size={35} /> */}
+                  </View>
+                </TouchableOpacity>
+                {/* <Text style={{ marginTop: 25, color: "white" }}>
+                  *terms and conditions apply.
+                </Text> */}
+              </View>
+            )}
+            <View style={{ alignItems: "center", top: "5%" }}>
               <TouchableOpacity
-                style={{ alignItems: "center", marginBottom: 50 }}
+                onPress={() => {
+                  setShowFriends(true);
+                }}
               >
-                <View style={styles.joinButton}>
-                  <Text style={styles.joinButtonText}>Join</Text>
-                  <Icon name="add" color="white" size={35} />
-                </View>
+                <Text style={{ color: "white", fontSize: 15 }}>
+                  See Who's Going
+                </Text>
               </TouchableOpacity>
-              <Text style={{ marginTop: 25, color: "white" }}>
-                *terms and conditions apply.
-              </Text>
             </View>
+            {showFriends ? (
+              <View style={styles.seeFriendsContainer}>
+                <TouchableOpacity
+                  style={{ left: "90%" }}
+                  onPress={() => {
+                    setShowFriends(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 25, color: "white" }}>X</Text>
+                </TouchableOpacity>
+
+                <FlatList
+                  vertical
+                  showsHorizontalScrollIndicator={false}
+                  data={joinedUsersDetails}
+                  renderItem={({ item }) => {
+                    return (
+                      <View
+                        style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          height: 50,
+                          alignItems: "center",
+                          left: "25%",
+                        }}
+                      >
+                        <Image
+                          style={{
+                            height: "90%",
+                            width: "15%",
+                            borderRadius: 100,
+                            marginRight: "2%",
+                          }}
+                          source={
+                            item.profilePhoto
+                              ? { uri: item.profilePhoto }
+                              : require("../assets/userProfile.jpg")
+                          }
+                        />
+                        <Text style={{ color: "white", fontSize: 17 }}>
+                          {item.displayName}
+                        </Text>
+                      </View>
+                    );
+                  }}
+                />
+              </View>
+            ) : null}
           </ScrollView>
         </View>
       </ImageBackground>
@@ -202,6 +318,16 @@ export default function DetailsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  seeFriendsContainer: {
+    flex: 1,
+    position: "absolute",
+    width: "70%",
+    height: "50%",
+    backgroundColor: "rgba(191, 90, 224,1)",
+    top: "40%",
+    marginHorizontal: "15%",
+    borderRadius: 20,
+  },
   joinButtonText: {
     fontSize: 30,
     color: "white",
