@@ -3,7 +3,6 @@ import React from "react";
 import { auth, db } from "../app/screens/Firebase";
 import { updateDoc } from "firebase/firestore";
 import Icon from "react-native-vector-icons/AntDesign";
-
 const user = {
   displayName: "Salman Shahid",
   profilePhoto: require("../app/assets/userProfile.jpg"),
